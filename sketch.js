@@ -1,13 +1,23 @@
 w = 1920;
 h = 1080;
 let enemies =[]; 
-let score = 0;	
+let score = 0;
+let laserSound = 0;
+let laserEnemy = 0;
+let backgroundMusic = 0;
+function preload(){
+	laserSound = loadSound('laser.mp3');
+	laserEnemy = loadSound('laserEnemy.wav');
+	backgroundMusic = loadSound('backgroundMusic.mp3');
+	laserSound.setVolume(0.08);
+	laserEnemy.setVolume(0.05);
+	backgroundMusic.setVolume(1);
+}
 function setup() {
 	createCanvas(w, h);
 	background(0);
-	for (enemy of enemies){
-		enemy.setColor(random(0,255),random(0,255),random(0,255));
-	}
+	backgroundMusic.play();
+	backgroundMusic.setLoop(true);
 }
 
 class bullet{
@@ -53,63 +63,29 @@ class healthBar{
 		rect(this.x,this.y,this.w *this.ratio,this.h);
 	}
 }
-class spaceShip{
-	constructor(x = w,y = h / 2,w = 50,h = 75,o =-1, hp = 100, action=1){
-		//Player ship elements
-		this.x = x; //x pos of ship
-		this.y = y; //y pos of ship
-		this.w = w; //width of ship
-		this.h = h; //height of ship
-		this.r = 255; //Red val
-		this.g = 0; //Green val
-		this.b = 0; //Blue val
-		this.controllerSpeed = 8; //Speed of player's ship
-		this.orientation = o; //1 = facing right, -1 = facing left
-		this.numBullets = 2;
-		this.bulletSpeed = 20;
-		this.delay = 90;
-		this.c = 0; //counter of time after bullet fired
-		this.hp = hp;
-		this.fullHp = hp;
-		this.bullets = [];
-		this.flash = 0; //Variable needed for ship to flash and fade back into color when it's hit
-		this.score = 1;
-		this.oYPos = y; //holds original
-		this.hpBar = 'undefined';
-		//Enemy elements
-		this.maxFlash = 60 * 0.5;
-		this.xSpeed = 4;
-		this.ySpeed = 4;
-		this.bound = 200;
-		this.att = 20;
-		this.action = action;
+class hitBox{
+	constructor(x,y,w,h,orientation = 1){
+		this.x = x;
+		this.y = y;
+		this.w = w;
+		this.h = h;
+		this.orientation = orientation;
 	}
-	setHp(hp){
-		this.hp = hp;
-		this.fullHp = hp;
-	}
-	setColor(r,g,b){
-		this.r = r;
-		this.g = g;
-		this.b = b;
-	}
-	/**
-	 * Cases for not collision:
-	 * left side of bullet is more right than rightmost point in spaceship
-	 * leftside of spaceship is more right than leftside of bullet
-	 * bullet is above spaceship
-	 * bullet is below spaceship
-	 */
+	draw(){
+		alpha(0.4);
+		fill(255,0,0,100);
+		rect(this.x,this.y,this.w,this.h);
+	}	
 	isHit(bullet){
 		var bTop = bullet.y - bullet.h/2;
 		var bBottom = bullet.y + bullet.h/2;
 		var bRight;
 		var bLeft;
-		var spTop = this.y - this.h/2;
-		var spBottom = this.y + this.h/2;
+		var spTop = this.y;
+		var spBottom = this.y + this.h;
 		var spRight;
 		var spLeft;
-		if (bullet.orientation == 1){
+				if (bullet.orientation == 1){
 			bRight = bullet.x + bullet.w;
 			bLeft = bullet.x;
 		}else if (bullet.orientation == -1){
@@ -138,11 +114,83 @@ class spaceShip{
 		return true;
 	}
 
+
+}
+class spaceShip{
+	constructor(x = w,y = h / 2,w = 50,h = 75,o =-1, hp = 100, action=1){
+		//Player ship elements
+		this.x = x; //x pos of ship
+		this.y = y; //y pos of ship
+		this.w = w; //width of ship
+		this.h = h; //height of ship
+		this.r = 255; //Red val
+		this.g = 0; //Green val
+		this.b = 0; //Blue val
+		this.controllerSpeed = 8; //Speed of player's ship
+		this.orientation = o; //1 = facing right, -1 = facing left
+		this.numBullets = 2;
+		this.bulletSpeed = 20;
+		this.delay = 90;
+		this.c = 0; //counter of time after bullet fired
+		this.hp = hp;
+		this.fullHp = hp;
+		this.bullets = [];
+		this.flash = 0; //Variable needed for ship to flash and fade back into color when it's hit
+		this.score = 1;
+		this.oYPos = y; //holds original
+		this.hpBar = 'undefined';
+		this.hitBoxes = [];
+		if (this.orientation == 1){
+			this.hitBoxes.push(new hitBox(this.x,this.y-h/30,this.w,h/15));
+			this.hitBoxes.push(new hitBox(this.x,this.y-this.h/2,w/4,h));
+			this.hitBoxes.push(new hitBox(this.x,this.y-this.h/4,w/2,h/2));
+		}else if (this.orientation = -1){
+			this.hitBoxes.push(new hitBox(this.x-w,this.y-h/30,this.w,h/15));
+			this.hitBoxes.push(new hitBox(this.x-w/4,this.y-this.h/2,w/4,h));
+			this.hitBoxes.push(new hitBox(this.x-w/2,this.y-this.h/4,w/2,h/2));
+	
+		}
+		//Enemy elements
+		this.maxFlash = 60 * 0.5;
+		this.xSpeed = 4;
+		this.ySpeed = 4;
+		this.bound = 200;
+		this.att = 20;
+		this.action = action;
+	}
+	setHp(hp){
+		this.hp = hp;
+		this.fullHp = hp;
+	}
+	setColor(r,g,b){
+		this.r = r;
+		this.g = g;
+		this.b = b;
+	}
+	/**
+	 * Cases for not collision:
+	 * left side of bullet is more right than rightmost point in spaceship
+	 * leftside of spaceship is more right than leftside of bullet
+	 * bullet is above spaceship
+	 * bullet is below spaceship
+	 */
+	isHit(bullet){
+		for (let hitB of this.hitBoxes){
+			if (hitB.isHit(bullet)){
+				return true;
+			}
+		}
+		return false;
+	}
+
 	//Enemy movement patterns:
 	//#1:
 	//moves straight towards player
 	straightThrough(){
 		this.x -= this.xSpeed;
+		for (let hitBox of this.hitBoxes){
+			hitBox.x -=this.xSpeed;
+		}
 	}
 	//#2:
 	//moves through stage with zig zag pattern towards player
@@ -151,9 +199,11 @@ class spaceShip{
 		if (this.y < this.oYPos - this.bound || this.y > this.oYPos + this.bound || this.y - this.h/2 < 0 || this.y + this.h /2 > h){
 			this.ySpeed *= -1;
 		}
-		console.log(this.oYPos);
-		console.log(this.y);
 		this.y += this.ySpeed;
+		for (let hitBox of this.hitBoxes){
+			hitBox.x -=this.xSpeed;
+			hitBox.y +=this.ySpeed;
+		}
 	}
 	
 	
@@ -195,37 +245,49 @@ class spaceShip{
 				}
 			}
 		}
+		/*if (this.orientation == 1 || this.orientation == -1){
+			for (let hitB of this.hitBoxes){
+				hitB.draw();
+			}
+		}*/
 	}
 	move(){
 		if (keyIsDown(UP_ARROW) && this.y > this.h/2){
 			this.y-=this.controllerSpeed;
+			for (let hitBox of this.hitBoxes){
+				hitBox.y -=this.controllerSpeed;
+			}
 		}else if(keyIsDown(DOWN_ARROW) && this.y < (h - this.h/2)){
 			this.y+=this.controllerSpeed;
-		
+			for (let hitBox of this.hitBoxes){
+				hitBox.y +=this.controllerSpeed;
+			}
 		}
 	}
 	spacePressed(){
-		if (key == ' ')
-			this.shoot();
+		if (key == ' '){
+			if (this.bullets.length < this.numBullets){
+				laserSound.play();
+				this.shoot();
+			}
+		}
 	}
 	autoShoot(){
 		this.c++;
 		if (this.c > this.delay){
+			laserEnemy.play();
 			this.shoot();
 			this.c = 0;
 		}
 
 	}
 	shoot(){
-		if (this.bullets.length < this.numBullets){
-			this.bullets.push(new bullet(this.x+this.w*this.orientation,this.y,this.w/4,this.h/20,this.orientation,this.att));
-			this.bullets[this.bullets.length-1].speed = this.bulletSpeed * this.orientation;
-		}
+		this.bullets.push(new bullet(this.x+this.w*this.orientation,this.y,this.w/4,this.h/20,this.orientation,this.att));
+		this.bullets[this.bullets.length-1].speed = this.bulletSpeed * this.orientation;
 	}
 	takeDamage(ship, bullet){
 		this.flash = this.maxFlash;
 		var damage = bullet.att;
-	//	console.log(damage);
 		this.hp -= damage;
 		if(this.orientation == 1 && this.hp <= 0){
 			this.h = 0;
@@ -266,6 +328,17 @@ function draw() {
 		text("score: " + score, w/2 - 300, h/2 + 200);
 	}
 	timePassed++;
+	//doCollisionTest();
+}
+function doCollisionTest(){
+	background(0);
+	ship.move();
+	ship.draw();
+	let bul = new bullet(80,465,100,100,1,20);
+	bul.draw();
+	if (ship.isHit(bul)){
+		console.log("yaay");
+	}
 }
 function cleanUp(){
 	let len = enemies.length;
@@ -284,7 +357,7 @@ function displayTitle(){
 	}
 	textSize(displayTitle.size);
 	fill(255);
-	text("Kill all your damn enemies today!", w / 2 - 300, h / 2);
+	text("Kill all your enemies today!", w / 2 - 300, h / 2);
 	displayTitle.size = (displayTitle.size>=32)?32:displayTitle.size + .5;
 }
 var render = {duration:60*5, counter: 60 * 5}
@@ -305,11 +378,9 @@ function renderEnemy(){
 			enemy.setHp(enemy.hp * 5);
 			enemy.score = 10;
 		}else if (enemyToRender > 10 && enemyToRender <= 40){
-			enemy = new spaceShip(w,random(150,h-150),100,150,-1,100,parseInt(Math.floor(Math.random() * 2 + 1)));
+			enemy = new spaceShip(w,random(150,h-150),100 * 3/4 ,150 * 3/4,-1,100,parseInt(Math.floor(Math.random() * 2 + 1)));
 			enemy.xSpeed *= 2;
 			enemy.setHp(enemy.hp * 0.25);
-			enemy.h *= 3/4;
-			enemy.w *= 3/4;
 			enemy.delay *= 1/2;
 			enemy.att *= 1/4;
 			enemy.score = 0.5;
