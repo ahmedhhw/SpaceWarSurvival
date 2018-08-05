@@ -11,7 +11,7 @@ function preload(){
 	backgroundMusic = loadSound('backgroundMusic.mp3');
 	laserSound.setVolume(0.08);
 	laserEnemy.setVolume(0.05);
-	backgroundMusic.setVolume(1);
+	backgroundMusic.setVolume(0.4);
 }
 function setup() {
 	createCanvas(w, h);
@@ -19,7 +19,6 @@ function setup() {
 	backgroundMusic.play();
 	backgroundMusic.setLoop(true);
 }
-
 class bullet{
 	constructor(x,y,w,h,o,att = 20){
 		this.x = x;
@@ -43,6 +42,26 @@ class bullet{
 		this.x+=this.speed;
 	}
 
+}
+class megaBullet extends bullet{
+	constructor(x,y,w,h,o,att = 100){
+		super(x,y,w,h,o,att);
+		this.r = 255;
+		this.g = 0;
+		this.b = 0;
+		this.factor = 5
+		this.alpha = this.map(factor,5,0,30,255);
+	}
+	draw(){
+		this.alpha = this.map(factor,5,0,30,255);
+		fill(this.r,this.g,this.b,alpha);
+		if (this.orientation == 1){
+			ellipse(x+w,y,w/this.factor,y/this.factor);
+		}else if (this.orientation == -1){
+			ellipse(x+w,y,w/this.factor,y/this.factor);
+		}
+		this.factor-= 1/60;
+	}
 }
 class healthBar{
 	constructor(ratio,x,y,w,h){
@@ -128,9 +147,10 @@ class spaceShip{
 		this.b = 0; //Blue val
 		this.controllerSpeed = 8; //Speed of player's ship
 		this.orientation = o; //1 = facing right, -1 = facing left
-		this.numBullets = 2;
+		this.numBullets = 4;
 		this.bulletSpeed = 20;
 		this.delay = 90;
+		this.preIgnition = 60;
 		this.c = 0; //counter of time after bullet fired
 		this.hp = hp;
 		this.fullHp = hp;
@@ -244,6 +264,9 @@ class spaceShip{
 					this.bullets.splice(i,1);
 				}
 			}
+		}
+		if (keyIsDown(32)){
+			this.preIgnition--;
 		}
 		/*if (this.orientation == 1 || this.orientation == -1){
 			for (let hitB of this.hitBoxes){
