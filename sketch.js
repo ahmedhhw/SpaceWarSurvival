@@ -8,6 +8,7 @@ let backgroundMusic = 0;
 let megaBlastCharging = 0;
 let megaBlastReleased = 0;
 let megaBlastCharged = 0;
+let dying = 0;
 function preload(){
 	laserSound = loadSound('laser.mp3');
 	laserEnemy = loadSound('laserEnemy.wav');
@@ -15,8 +16,10 @@ function preload(){
 	megaBlastCharging = loadSound('megaBlastCharging.wav');
 	megaBlastReleased = loadSound('megaBlastReleased.wav');
 	megaBlastCharged = loadSound('megaBlastCharged.wav');
+	dying = loadSound('Dying.wav');
 	laserSound.setVolume(0.08);
 	laserEnemy.setVolume(0.05);
+	dying.setVolume(0.4);
 	megaBlastCharging.setVolume(0.15);
 	megaBlastReleased.setVolume(0.15);
 	megaBlastCharged.setVolume(0.15);
@@ -55,6 +58,8 @@ class bullet{
 class megaBullet extends bullet{
 	constructor(x,y,w,h,o,att = 100){
 		super(x,y,w,h,o,att);
+		this.chargedAtt = att;
+		this.att = 0.25;
 		this.r = 255;
 		this.g = 0;
 		this.b = 0;
@@ -79,6 +84,8 @@ class megaBullet extends bullet{
 	}
 	explode(){
 		//megaBlastCharged.stop();
+		if (this.att < 1)
+			this.att = this.chargedAtt;
 		megaBlastReleased.play();
 		fill(this.r,this.g,this.b);
 		rect(this.x+25,this.y - this.h/2,this.w,this.h,100);
@@ -199,10 +206,16 @@ class spaceShip{
         	//Mega blast elements
 		this.megaBlast = {
 			megaB:'undefined', 
-			downTimer:60,
+			downTimer:20,
 			exploding:false
 		}
 
+		//Death has occured
+		this.death = {
+			dying:false,
+			downTimer:50,
+			maxDownTimer:50
+		}
 
 		//Enemy elements
 		this.maxFlash = 60 * 0.5;
@@ -272,23 +285,39 @@ class spaceShip{
 		if (this.flash >= 0){
 			this.flash--;
 		}
+		
 		if (this.orientation == 1)
 			this.hpBar = new healthBar(this.hp / this.fullHp,150,125,300,37);
 		else if (this.orientation == -1)
 			this.hpBar = new healthBar(this.hp / this.fullHp,this.x,this.y-50 - this.h/2,100,12);
-		this.hpBar.draw();
+		if (!this.death.dying)
+			this.hpBar.draw();
 		this.topLeftEdge = this.y - this.h / 2;
 		this.bottomLeftEdge = this.y + this.h / 2;
-		fill(this.r,this.g,this.b);
-		if (this.flash > 0){
-			fill(map(this.flash,this.maxFlash,0,255,this.r),map(this.flash,this.maxFlash,0,0,this.g),map(this.flash,this.maxFlash,0,0,this.b));
+		if (!this.death.dying){
+			fill(this.r,this.g,this.b);
+			if (this.flash > 0){
+				fill(map(this.flash,this.maxFlash,0,255,this.r),map(this.flash,this.maxFlash,0,0,this.g),map(this.flash,this.maxFlash,0,0,this.b));
+			}
 		}
 		this.wingLength = this.w/4 * this.orientation;
 		this.wingSlant = this.h/8;
+		if (this.death.dying){
+			this.r = 255;
+			this.g = 0;
+			this.b = 0;
+			fill(this.r,this.g,this.b,map(this.death.downTimer,this.death.maxDownTimer,0,255,0));
+			if (this.death.downTimer == 0){
+				this.die();
+			}
+			this.death.downTimer--;
+		}
 		quad(this.x,this.topLeftEdge,this.x+this.wingLength,this.topLeftEdge+this.wingSlant,this.x+this.wingLength,this.bottomLeftEdge-this.wingSlant,this.x,this.bottomLeftEdge);
-		fill(this.b,this.g,this.r);
-		if (this.flash > 0){
-			fill(map(this.flash,this.maxFlash,0,255,this.b),map(this.flash,this.maxFlash,0,0,this.g),map(this.flash,this.maxFlash,0,0,this.r));
+		if (!this.death.dying){
+			fill(this.b,this.g,this.r);
+			if (this.flash > 0){
+				fill(map(this.flash,this.maxFlash,0,255,this.b),map(this.flash,this.maxFlash,0,0,this.g),map(this.flash,this.maxFlash,0,0,this.r));
+			}
 		}
 		triangle(this.x,this.y-this.h/3,this.x,this.y+this.h/3,this.x+this.w*this.orientation,this.y);	
 		if (this.bullets.length > 0){
@@ -302,17 +331,21 @@ class spaceShip{
 		if (keyIsDown(32)){
 			this.preIgnition--;
 		}
-		/*if (this.orientation == 1 || this.orientation == -1){
-			for (let hitB of this.hitBoxes){
-				hitB.draw();
-			}
-		}*/
+		console.log("updated");
 		if (this.megaBlast.exploding){
 			this.megaBlast.megaB.explode();
 			if (this.megaBlast.megaB.x + this.megaBlast.megaB.w >= w){
 				this.megaBlast.megaB = 'undefined';
 				this.megaBlast.downTimer = 60;
 				this.megaBlast.exploding = false;
+			}
+		}
+		//this.drawHitBoxes();
+	}
+	drawHitBoxes(){
+		if (this.orientation == 1 || this.orientation == -1){
+			for (let hitB of this.hitBoxes){
+				hitB.draw();
 			}
 		}
 	}
@@ -375,17 +408,26 @@ class spaceShip{
 		this.flash = this.maxFlash;
 		var damage = bullet.att;
 		this.hp -= damage;
-		if(this.orientation == 1 && this.hp <= 0){
+		if(this.hp <= 0){
+			//come back
+			if (!dying.isPlaying())
+				dying.play();
+			this.death.dying = true;
+		}	
+	}
+	die(){
+		if(this.orientation == 1){
 			this.h = 0;
 			this.w = 0;
-		}else if (this.hp <= 0){
+		}else if (this.orientation == -1){
 			for (var i = 0; i < enemies.length; i++)
 				if (enemies[i].x == this.x && enemies[i].y == this.y){
 					enemies.splice(i,1);
 					score += this.score;
 				}
 		}
-}
+
+	}
 }
 function keyReleased(){
 	if (key == ' '){
@@ -408,7 +450,8 @@ function draw() {
 	if (timePassed < 60 * 3){
 		displayTitle();
 	}else if (ship.hp > 0){
-		ship.move();
+		if (!ship.death.dying)
+			ship.move();
 		ship.draw();
 		//Enemies take Damage from you
 		renderEnemy();
@@ -419,6 +462,7 @@ function draw() {
 		text("score: " + score, w-300, 100);
 		text("Health: " + parseInt(ship.hp/3) + "%" , 200, 100);
 	}else{
+		//background(255,0,0);
 		textSize(64);
 		fill (255);
 		text("GAME OVER", w/2-300, h/2);
@@ -435,7 +479,6 @@ function doCollisionTest(){
 	let bul = new bullet(80,465,100,100,1,20);
 	bul.draw();
 	if (ship.isHit(bul)){
-		console.log("yaay");
 	}
 }
 function cleanUp(){
@@ -464,10 +507,14 @@ function renderEnemy(){
 		enemyToRender = Math.floor(Math.random() * 100 + 1); // allows choice between 4 defined enemies:
 		/**
 		 * Enemy types:
-		 * 1: Slow and tanky
+		 * 1: Slow and tanky:
+		 * 10% spawn rate
 		 * 2: fast and weak
+		 * 30% spawn rate
 		 * 3: Powerful and long
+		 * 20% spawn rate
 		 * 4: Normal enemy
+		 * 40% spawn rate
 		 */
 		enemy = 'undefined';
 		if (enemyToRender > 0 && enemyToRender <= 10){
@@ -516,17 +563,23 @@ function damageToEnemies(){
 		if (beyondReach)
 			break;
 		enemies[i].draw();
-		enemies[i].moveIt();
-		enemies[i].autoShoot();
+		if (i > enemies.length -1 || enemies.length == 0)
+			break;
+		if (!enemies[i].death.dying){
+			enemies[i].moveIt();
+			enemies[i].autoShoot();
+		}
 		for (var j = 0; j < ship.bullets.length; j++){
 			if (i > enemies.length -1){
 				beyondReach = true;
 				break;
 			}
-			if (enemies[i].isHit(ship.bullets[j])){
-				enemies[i].takeDamage(ship,ship.bullets[j]);
-				ship.bullets.splice(j,1);
-				j--;
+			if (!enemies[i].death.dying){
+				if (enemies[i].isHit(ship.bullets[j])){
+					enemies[i].takeDamage(ship,ship.bullets[j]);
+					ship.bullets.splice(j,1);
+					j--;
+				}
 			}
 		}
 		if (ship.megaBlast.megaB != 'undefined'){
