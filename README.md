@@ -2,7 +2,8 @@
 Controls:
 Up arrow: move up
 Down arrow: move down
-space: shoot
+tap space: small bullets
+hold space = charge mega blast
 -------------------------------------------------------------------------------------------------------------------------------
 Objective: Get the highest score possible by killing as many ships as possible without dying, for every ship
 that you miss, your score decreases by that ship's score.
